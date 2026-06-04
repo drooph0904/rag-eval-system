@@ -13,6 +13,34 @@ from config import RESULTS_DIR, UPLOADS_DIR, CHUNK_SIZE, EMBEDDING_MODEL, COHERE
 from pipeline_runner import run_pipeline
 
 
+# Human-readable names for chunking strategies and retrieval pipelines.
+STRATEGY_NAMES = {
+    "fixed": "Fixed-size chunks",
+    "semantic": "Semantic chunks",
+    "parent_child": "Parent-Child chunks",
+}
+PIPELINE_LABELS = {
+    "pipeline_1": "Top-K retrieval",
+    "pipeline_2": "HyDE + Top-K",
+    "pipeline_3": "HyDE + Cohere Rerank",
+}
+
+
+def pretty_combo(combo_key: str) -> str:
+    """'parent_child_pipeline_2' -> 'Parent-Child chunks · HyDE + Top-K'."""
+    parts = combo_key.rsplit("_pipeline_", 1)
+    if len(parts) != 2:
+        return combo_key
+    strategy, num = parts
+    return f"{STRATEGY_NAMES.get(strategy, strategy)} · {PIPELINE_LABELS.get('pipeline_' + num, 'pipeline_' + num)}"
+
+
+# Readable cell styles (explicit dark text so it stays legible in dark mode).
+_GREEN = "background-color: #c6efce; color: #1b5e20"
+_YELLOW = "background-color: #ffeb9c; color: #7f6000"
+_RED = "background-color: #ffc7ce; color: #9c0006"
+
+
 def load_results(path: str) -> dict:
     with open(path) as f:
         return json.load(f)
@@ -85,7 +113,9 @@ def render_run_panel():
 
 
 def resolve_data(uploaded_results):
-    """Pick which results to display, by priority."""
+    """Pick which results to display, by priority. Starts clean — does NOT
+    auto-load the most recent file; the user must upload a PDF, run an eval,
+    or load a results JSON explicitly."""
     if uploaded_results is not None:
         return json.load(uploaded_results)
 
@@ -94,9 +124,8 @@ def resolve_data(uploaded_results):
         return load_results(active)
 
     cli_path = parse_args()
-    results_path = cli_path or find_latest_results()
-    if results_path and os.path.exists(results_path):
-        return load_results(results_path)
+    if cli_path and os.path.exists(cli_path):
+        return load_results(cli_path)
     return None
 
 
@@ -104,7 +133,7 @@ def render_stage1(stage1, top3_keys):
     st.header("Stage 1 — All 9 Combinations")
     rows = [
         {
-            "Combination": combo,
+            "Pipeline": pretty_combo(combo),
             "Context Precision": round(v["mean_context_precision"], 3),
             "Context Recall": round(v["mean_context_recall"], 3),
             "Passed to Stage 2": "✓" if combo in top3_keys else "",
@@ -114,16 +143,16 @@ def render_stage1(stage1, top3_keys):
     df1 = pd.DataFrame(rows).sort_values("Context Precision", ascending=False).reset_index(drop=True)
 
     def highlight_top3(row):
-        return ["background-color: #d4edda"] * len(row) if row["Passed to Stage 2"] == "✓" else [""] * len(row)
+        return [_GREEN] * len(row) if row["Passed to Stage 2"] == "✓" else [""] * len(row)
 
-    st.dataframe(df1.style.apply(highlight_top3, axis=1), use_container_width=True)
+    st.dataframe(df1.style.apply(highlight_top3, axis=1), use_container_width=True, hide_index=True)
 
 
 def render_stage2(stage2, winner):
     st.header("Stage 2 — Top 3 Combinations (scored vs golden ground-truth)")
     rows = [
         {
-            "Combination": combo,
+            "Pipeline": pretty_combo(combo),
             "Answer Correctness": round(v["mean_answer_correctness"], 3),
             "Answer Similarity": round(v["mean_answer_similarity"], 3),
             "Best": "🏆" if combo == winner else "",
@@ -133,9 +162,9 @@ def render_stage2(stage2, winner):
     df2 = pd.DataFrame(rows)
 
     def highlight_winner(row):
-        return ["background-color: #d4edda"] * len(row) if row["Best"] == "🏆" else [""] * len(row)
+        return [_GREEN] * len(row) if row["Best"] == "🏆" else [""] * len(row)
 
-    st.dataframe(df2.style.apply(highlight_winner, axis=1), use_container_width=True)
+    st.dataframe(df2.style.apply(highlight_winner, axis=1), use_container_width=True, hide_index=True)
 
 
 def render_per_type(valid_q):
@@ -164,7 +193,9 @@ def render_per_type(valid_q):
 
 def render_drilldown(stage2):
     st.header("Per-Question Drill-Down")
-    combo_choice = st.selectbox("Select combination", options=list(stage2.keys()))
+    combo_choice = st.selectbox(
+        "Select pipeline", options=list(stage2.keys()), format_func=pretty_combo
+    )
     if not combo_choice:
         return
     per_q = stage2[combo_choice].get("per_question", [])
@@ -188,10 +219,10 @@ def render_drilldown(stage2):
     def color_rows(row):
         f = row["Answer Correctness"]
         if f > 0.8:
-            return ["background-color: #d4edda"] * len(row)
+            return [_GREEN] * len(row)
         elif f >= 0.5:
-            return ["background-color: #fff3cd"] * len(row)
-        return ["background-color: #f8d7da"] * len(row)
+            return [_YELLOW] * len(row)
+        return [_RED] * len(row)
 
     selection = st.dataframe(
         df_q.style.apply(color_rows, axis=1),
@@ -222,6 +253,9 @@ def main():
         st.write(f"Embedding model: {EMBEDDING_MODEL}")
         st.write(f"Reranker: {COHERE_RERANK_MODEL}")
         st.write(f"Sample per type: {SAMPLE_PER_TYPE}")
+        if st.button("Clear / start fresh"):
+            st.session_state.pop("active_results_path", None)
+            st.rerun()
 
     # --- New-PDF evaluation panel ---
     render_run_panel()
@@ -253,7 +287,8 @@ def main():
 
     st.header("Winner")
     winner_data = data.get("winner", {})
-    st.markdown(f"### {winner_data.get('combination', 'N/A')}")
+    win_combo = winner_data.get("combination", "")
+    st.markdown(f"### 🏆 {pretty_combo(win_combo) if win_combo else 'N/A'}")
     st.write(winner_data.get("reason", ""))
     st.divider()
 
