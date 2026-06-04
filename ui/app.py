@@ -55,53 +55,43 @@ def parse_args() -> str | None:
         return None
 
 
-def render_run_panel():
-    """Upload a PDF and run the full Phase 1 -> sample -> Phase 2 pipeline live."""
-    with st.expander("🚀 Evaluate a new PDF (runs Phase 1 + Phase 2)", expanded=False):
-        st.caption(
-            f"Uploads a PDF, generates golden Q&A over the whole document (Phase 1), "
-            f"evaluates a stratified sample of up to {SAMPLE_PER_TYPE} questions per type "
-            f"across all 9 pipelines (Phase 2), then shows the dashboard below. "
-            f"Large PDFs can take several minutes."
-        )
-        uploaded_pdf = st.file_uploader("PDF to evaluate", type="pdf", key="pdf_uploader")
-        run_clicked = st.button("Run full evaluation", type="primary", disabled=uploaded_pdf is None)
+def run_evaluation(uploaded_pdf):
+    """Save the uploaded PDF and stream the full Phase 1 -> sample -> Phase 2
+    pipeline in the MAIN area (the controls live in the sidebar)."""
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
+    pdf_path = os.path.join(UPLOADS_DIR, uploaded_pdf.name)
+    with open(pdf_path, "wb") as f:
+        f.write(uploaded_pdf.getbuffer())
 
-        if run_clicked and uploaded_pdf is not None:
-            os.makedirs(UPLOADS_DIR, exist_ok=True)
-            pdf_path = os.path.join(UPLOADS_DIR, uploaded_pdf.name)
-            with open(pdf_path, "wb") as f:
-                f.write(uploaded_pdf.getbuffer())
+    st.subheader(f"Evaluating: {uploaded_pdf.name}")
+    log_lines: list[str] = []
+    results_path = None
+    error = None
+    with st.status("Starting…", expanded=True) as status:
+        log_box = st.empty()
+        for ev in run_pipeline(pdf_path):
+            if ev["type"] == "phase":
+                log_lines.append(f"\n=== {ev['name']} ===")
+                status.update(label=ev["name"])
+            elif ev["type"] == "log":
+                log_lines.append(ev["line"])
+            elif ev["type"] == "error":
+                error = ev["message"]
+                break
+            elif ev["type"] == "done":
+                results_path = ev["results_path"]
+            log_box.code("\n".join(log_lines[-250:]))
 
-            log_lines: list[str] = []
-            results_path = None
-            error = None
-            with st.status("Running evaluation…", expanded=True) as status:
-                log_box = st.empty()
-                for ev in run_pipeline(pdf_path):
-                    if ev["type"] == "phase":
-                        log_lines.append(f"\n=== {ev['name']} ===")
-                        status.update(label=ev["name"])
-                    elif ev["type"] == "log":
-                        log_lines.append(ev["line"])
-                    elif ev["type"] == "error":
-                        error = ev["message"]
-                        break
-                    elif ev["type"] == "done":
-                        results_path = ev["results_path"]
-                    log_box.code("\n".join(log_lines[-250:]))
+        if error:
+            status.update(label="Evaluation failed", state="error")
+        elif results_path:
+            status.update(label="Evaluation complete", state="complete")
 
-                if error:
-                    status.update(label="Evaluation failed", state="error")
-                elif results_path:
-                    status.update(label="Evaluation complete", state="complete")
-
-            if error:
-                st.error(error)
-            elif results_path:
-                st.session_state["active_results_path"] = results_path
-                st.success("Done — loading results below.")
-                st.rerun()
+    if error:
+        st.error(error)
+    elif results_path:
+        st.session_state["active_results_path"] = results_path
+        st.rerun()
 
 
 def resolve_data():
@@ -233,25 +223,43 @@ def main():
     st.set_page_config(page_title="RAG Eval Results", layout="wide")
     st.title("RAG Pipeline Evaluation Results")
 
-    # --- Sidebar ---
+    # --- Sidebar: upload + run + config ---
     with st.sidebar:
-        st.header("Settings")
-        st.subheader("Config")
-        st.write(f"Chunk size: {CHUNK_SIZE} tokens")
-        st.write(f"Embedding model: {EMBEDDING_MODEL}")
-        st.write(f"Reranker: {COHERE_RERANK_MODEL}")
-        st.write(f"Sample per type: {SAMPLE_PER_TYPE}")
-        if st.button("Clear / start fresh"):
+        st.header("🚀 Evaluate a PDF")
+        st.caption(
+            f"Generates golden Q&A over the whole PDF (Phase 1), then evaluates up to "
+            f"{SAMPLE_PER_TYPE} questions per type across all 9 pipelines (Phase 2)."
+        )
+        uploaded_pdf = st.file_uploader("Choose a PDF", type="pdf", key="pdf_uploader")
+        run_clicked = st.button(
+            "Run full evaluation",
+            type="primary",
+            use_container_width=True,
+            disabled=uploaded_pdf is None,
+        )
+        st.caption("⏱️ Large PDFs can take several minutes.")
+
+        st.divider()
+        st.subheader("⚙️ Config")
+        st.write(f"**Chunk size:** {CHUNK_SIZE} tokens")
+        st.write(f"**Embedding:** {EMBEDDING_MODEL}")
+        st.write(f"**Reranker:** {COHERE_RERANK_MODEL}")
+        st.write(f"**Sample / type:** {SAMPLE_PER_TYPE}")
+
+        st.divider()
+        if st.button("🧹 Clear / start fresh", use_container_width=True):
             st.session_state.pop("active_results_path", None)
             st.rerun()
 
-    # --- New-PDF evaluation panel ---
-    render_run_panel()
+    # --- Run (streams in the main area), triggered from the sidebar ---
+    if run_clicked and uploaded_pdf is not None:
+        run_evaluation(uploaded_pdf)
+        return
 
     # --- Resolve which results to display ---
     data = resolve_data()
     if data is None:
-        st.info("Upload a PDF above and click **Run full evaluation** to see results here.")
+        st.info("⬅️ Upload a PDF in the sidebar and click **Run full evaluation** to see results here.")
         st.stop()
         return
 
