@@ -100,17 +100,15 @@ def main():
     st.divider()
 
     # --- Stage 2 cards ---
-    st.header("Stage 2 — Top 3 Combinations")
+    st.header("Stage 2 — Top 3 Combinations (scored vs golden ground-truth)")
     winner = data.get("winner", {}).get("combination", "")
     cols = st.columns(len(stage2))
-    for col, (combo, v) in zip(cols, sorted(stage2.items(), key=lambda kv: kv[1]["mean_faithfulness"], reverse=True)):
+    for col, (combo, v) in zip(cols, sorted(stage2.items(), key=lambda kv: kv[1]["mean_answer_correctness"], reverse=True)):
         with col:
             badge = " 🏆 BEST" if combo == winner else ""
             st.subheader(f"{combo}{badge}")
-            st.progress(v["mean_faithfulness"], text=f"Faithfulness: {v['mean_faithfulness']:.2f}")
-            st.progress(v["mean_answer_relevancy"], text=f"Answer Relevancy: {v['mean_answer_relevancy']:.2f}")
-            st.progress(v["mean_context_precision"], text=f"Context Precision: {v['mean_context_precision']:.2f}")
-            st.progress(v["mean_context_recall"], text=f"Context Recall: {v['mean_context_recall']:.2f}")
+            st.progress(v["mean_answer_correctness"], text=f"Answer Correctness: {v['mean_answer_correctness']:.2f}")
+            st.progress(v["mean_answer_similarity"], text=f"Answer Similarity: {v['mean_answer_similarity']:.2f}")
 
     st.divider()
 
@@ -132,16 +130,14 @@ def main():
             df_q = pd.DataFrame([
                 {
                     "Question": q["question"][:80],
-                    "Faithfulness": round(q.get("faithfulness", 0), 3),
-                    "Relevancy": round(q.get("answer_relevancy", 0), 3),
-                    "Ctx Precision": round(q.get("context_precision", 0), 3),
-                    "Ctx Recall": round(q.get("context_recall", 0), 3),
+                    "Answer Correctness": round(q.get("answer_correctness", 0), 3),
+                    "Answer Similarity": round(q.get("answer_similarity", 0), 3),
                 }
                 for q in valid_q
             ])
 
             def color_rows(row):
-                f = row["Faithfulness"]
+                f = row["Answer Correctness"]
                 if f > 0.8:
                     return ["background-color: #d4edda"] * len(row)
                 elif f >= 0.5:

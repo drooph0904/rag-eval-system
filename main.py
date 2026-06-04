@@ -228,7 +228,7 @@ def main():
 
     # --- Stage 2: top 3 combinations ---
     print(f"{'='*60}")
-    print("STAGE 2 — Running top 3 combinations (answer generation + RAGAS scoring)")
+    print("STAGE 2 — Running top 3 combinations (answer generation + golden-truth scoring)")
     print(f"{'='*60}\n")
 
     stage2_evaluator = Stage2Evaluator()
@@ -244,15 +244,15 @@ def main():
             ground_truth = _get_ground_truth(q)
             chunks = _retrieve(pipeline_name, question, store, embedder,
                                openai_client, cohere_client, p1, p2, p3)
-            result = stage2_evaluator.evaluate(question, ground_truth, chunks, openai_client)
+            result = stage2_evaluator.evaluate(question, ground_truth, chunks, openai_client, embedder)
             per_question.append(result)
 
         agg = stage2_evaluator.aggregate(per_question)
         stage2_results[combo_key] = {**agg, "per_question": per_question}
         print(
             f"Stage 2 | {combo_key:<30} | "
-            f"faithfulness: {agg['mean_faithfulness']:.3f} | "
-            f"relevancy: {agg['mean_answer_relevancy']:.3f}"
+            f"correctness: {agg['mean_answer_correctness']:.3f} | "
+            f"similarity: {agg['mean_answer_similarity']:.3f}"
         )
 
     # --- Save results ---
@@ -282,15 +282,15 @@ def main():
             f"recall={v['mean_context_recall']:.3f}{marker}"
         )
 
-    print("\nStage 2 Rankings (by faithfulness):")
+    print("\nStage 2 Rankings (by answer correctness vs golden ground-truth):")
     for k, v in sorted(
         stage2_results.items(),
-        key=lambda kv: kv[1]["mean_faithfulness"],
+        key=lambda kv: kv[1]["mean_answer_correctness"],
         reverse=True,
     ):
         print(
-            f"  {k:<30} faithfulness={v['mean_faithfulness']:.3f}  "
-            f"relevancy={v['mean_answer_relevancy']:.3f}"
+            f"  {k:<30} correctness={v['mean_answer_correctness']:.3f}  "
+            f"similarity={v['mean_answer_similarity']:.3f}"
         )
 
     with open(results_path) as f:

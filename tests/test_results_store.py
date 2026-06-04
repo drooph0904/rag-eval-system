@@ -16,9 +16,9 @@ def make_stage1_results():
 
 def make_stage2_results():
     return {
-        "semantic_pipeline_2": {"mean_faithfulness": 0.91, "mean_answer_relevancy": 0.88, "mean_context_precision": 0.87, "mean_context_recall": 0.83, "per_question": []},
-        "fixed_pipeline_1": {"mean_faithfulness": 0.75, "mean_answer_relevancy": 0.70, "mean_context_precision": 0.68, "mean_context_recall": 0.65, "per_question": []},
-        "parent_child_pipeline_3": {"mean_faithfulness": 0.82, "mean_answer_relevancy": 0.80, "mean_context_precision": 0.78, "mean_context_recall": 0.76, "per_question": []},
+        "semantic_pipeline_2": {"mean_answer_similarity": 0.88, "mean_answer_correctness": 0.91, "per_question": []},
+        "fixed_pipeline_1": {"mean_answer_similarity": 0.70, "mean_answer_correctness": 0.75, "per_question": []},
+        "parent_child_pipeline_3": {"mean_answer_similarity": 0.80, "mean_answer_correctness": 0.82, "per_question": []},
     }
 
 
@@ -39,7 +39,7 @@ class TestResultsStore:
                 data = json.load(f)
             assert {"metadata", "stage1_results", "stage2_results", "winner"}.issubset(data.keys())
 
-    def test_winner_has_highest_faithfulness(self):
+    def test_winner_has_highest_answer_correctness(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             store = ResultsStore(results_dir=tmpdir)
             store.save("doc.pdf", "./golden.json", make_stage1_results(), make_stage2_results(), total_questions=50)

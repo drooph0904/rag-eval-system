@@ -38,9 +38,9 @@ class ResultsStore:
     def _determine_winner(self, stage2_results: dict) -> dict:
         if not stage2_results:
             return {"combination": "none", "reason": "No Stage 2 results available"}
-        best = max(stage2_results.items(), key=lambda kv: kv[1].get("mean_faithfulness", 0.0))
+        best = max(stage2_results.items(), key=lambda kv: kv[1].get("mean_answer_correctness", 0.0))
         combo, scores = best
         return {
             "combination": combo,
-            "reason": f"highest mean faithfulness in Stage 2 ({scores['mean_faithfulness']:.2f})",
+            "reason": f"highest mean answer correctness vs golden ground-truth in Stage 2 ({scores['mean_answer_correctness']:.2f})",
         }

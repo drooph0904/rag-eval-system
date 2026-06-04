@@ -1,95 +1,18 @@
 # rag_eval_phase2/evaluation/stage2_eval.py
 #
-# ragas 0.4.3 API notes:
-#   - SingleTurnSample(user_input, response, retrieved_contexts, reference)
-#   - EvaluationDataset([sample, ...])
-#   - evaluate(dataset, metrics=[...]) → EvaluationResult
-#   - EvaluationResult[metric_name] → list of float scores (one per sample)
-#   - metrics imported from ragas.metrics.collections (non-deprecated path)
-#   - LLM wrapper: from openai import OpenAI; ragas.llms.llm_factory(model, client=client)
-#   - evaluate() auto-creates an OpenAI LLM if none provided (uses OPENAI_API_KEY env var)
+# Stage 2 — answer generation + answer-quality scoring against the golden
+# ground-truth answer. No RAGAS: both scores reference the Phase 1 golden set.
+#
+#   answer_similarity  = cosine(embed(generated_answer), embed(ground_truth))
+#                        using the same MiniLM embedder as Stage 1 (free, deterministic).
+#   answer_correctness = gpt-4o-mini judges the generated answer vs the reference
+#                        answer on a 0-100 scale, normalized to 0-1.
 
-from config import ANSWER_MODEL
+import re
 
+import numpy as np
 
-def _ensure_ragas_importable():
-    """
-    ragas 0.4.3 imports Vertex AI classes unconditionally at import time:
-        from langchain_community.chat_models.vertexai import ChatVertexAI
-        from langchain_community.llms import VertexAI
-    but langchain-community>=0.3 removed those, so `import ragas` raises
-    ModuleNotFoundError on a clean install. We never use Vertex AI, so we inject
-    harmless stubs before importing ragas. Keeping this in-repo (rather than
-    editing site-packages) makes the fix reproducible from requirements.txt alone.
-    """
-    import sys
-    import types
-
-    submodule = "langchain_community.chat_models.vertexai"
-    if submodule not in sys.modules:
-        try:
-            __import__(submodule)
-        except ModuleNotFoundError:
-            stub = types.ModuleType(submodule)
-            stub.ChatVertexAI = None
-            sys.modules[submodule] = stub
-
-    try:
-        import langchain_community.llms as _llms
-        if not hasattr(_llms, "VertexAI"):
-            _llms.VertexAI = None
-    except Exception:
-        pass
-
-
-def evaluate_with_ragas(
-    question: str,
-    answer: str,
-    contexts: list,
-    ground_truth: str,
-) -> dict:
-    """
-    Run four RAGAS metrics for a single (question, answer, contexts, ground_truth) tuple.
-
-    Uses ragas 0.4.3 API:
-      - SingleTurnSample fields: user_input, response, retrieved_contexts, reference
-      - evaluate() accepts EvaluationDataset and a list of metric objects
-      - If no LLM is configured, ragas auto-creates one from OPENAI_API_KEY env var
-      - EvaluationResult[metric_name] returns a list; [0] fetches the first (only) sample's score
-
-    ragas is imported lazily (after stubbing Vertex AI) so that importing this
-    module never triggers ragas's broken import chain.
-
-    Returns
-    -------
-    dict with keys: faithfulness, answer_relevancy, context_precision, context_recall
-    """
-    _ensure_ragas_importable()
-    from ragas import SingleTurnSample, EvaluationDataset, evaluate
-    from ragas.metrics.collections import (
-        faithfulness,
-        answer_relevancy,
-        context_precision,
-        context_recall,
-    )
-
-    sample = SingleTurnSample(
-        user_input=question,
-        response=answer,
-        retrieved_contexts=contexts,
-        reference=ground_truth,
-    )
-    dataset = EvaluationDataset(samples=[sample])
-    result = evaluate(
-        dataset,
-        metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
-    )
-    return {
-        "faithfulness": float(result["faithfulness"][0]),
-        "answer_relevancy": float(result["answer_relevancy"][0]),
-        "context_precision": float(result["context_precision"][0]),
-        "context_recall": float(result["context_recall"][0]),
-    }
+from config import ANSWER_MODEL, JUDGE_MODEL
 
 
 ANSWER_PROMPT = """Answer the question using ONLY the provided context.
@@ -102,6 +25,26 @@ Question: {question}
 Answer:"""
 
 
+JUDGE_PROMPT = """You are grading a candidate answer against a reference (correct) answer.
+
+Question: {question}
+Reference answer: {reference}
+Candidate answer: {candidate}
+
+Score from 0 to 100 how well the candidate answer conveys the same information as
+the reference answer (100 = fully correct / equivalent, 0 = wrong or unrelated).
+Reply with ONLY a single integer from 0 to 100."""
+
+
+def _parse_score(text: str) -> float:
+    """Extract the first integer from the judge's reply and normalize to [0, 1]."""
+    match = re.search(r"\d+", text)
+    if not match:
+        return 0.0
+    score = int(match.group())
+    return max(0.0, min(1.0, score / 100.0))
+
+
 class Stage2Evaluator:
     def evaluate(
         self,
@@ -109,74 +52,78 @@ class Stage2Evaluator:
         ground_truth: str,
         retrieved_chunks: list,
         openai_client,
+        embedder,
     ) -> dict | None:
         """
-        Generate an answer with gpt-4o-mini, then score it with RAGAS.
+        Generate an answer from the retrieved chunks, then score it against the
+        golden ground-truth answer two ways: embedding similarity and an LLM judge.
 
         Returns a dict with keys:
-          question, generated_answer, ground_truth,
-          faithfulness, answer_relevancy, context_precision, context_recall
-
-        Returns None on any exception (API failures, ragas errors, etc.).
+          question, generated_answer, ground_truth, answer_similarity, answer_correctness
+        Returns None on any exception (API failure, etc.) so a single bad question
+        does not crash the whole run.
         """
         try:
+            # --- 1. Generate the answer from retrieved context ---
             context = "\n\n".join([c["text"] for c in retrieved_chunks])
-            response = openai_client.chat.completions.create(
+            answer_resp = openai_client.chat.completions.create(
                 model=ANSWER_MODEL,
                 messages=[
                     {
                         "role": "user",
-                        "content": ANSWER_PROMPT.format(
-                            context=context, question=question
-                        ),
+                        "content": ANSWER_PROMPT.format(context=context, question=question),
                     }
                 ],
                 temperature=0,
                 max_tokens=300,
             )
-            generated_answer = response.choices[0].message.content.strip()
-            scores = evaluate_with_ragas(
-                question=question,
-                answer=generated_answer,
-                contexts=[c["text"] for c in retrieved_chunks],
-                ground_truth=ground_truth,
+            generated_answer = answer_resp.choices[0].message.content.strip()
+
+            # --- 2. answer_similarity: cosine(answer, ground_truth) ---
+            ans_vec = embedder.embed_one(generated_answer)
+            gt_vec = embedder.embed_one(ground_truth)
+            cosine = float(np.dot(ans_vec, gt_vec))  # embeddings are unit-normalized
+            answer_similarity = max(0.0, min(1.0, cosine))
+
+            # --- 3. answer_correctness: LLM judge vs ground_truth ---
+            judge_resp = openai_client.chat.completions.create(
+                model=JUDGE_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": JUDGE_PROMPT.format(
+                            question=question,
+                            reference=ground_truth,
+                            candidate=generated_answer,
+                        ),
+                    }
+                ],
+                temperature=0,
+                max_tokens=10,
             )
+            answer_correctness = _parse_score(judge_resp.choices[0].message.content.strip())
+
             return {
                 "question": question,
                 "generated_answer": generated_answer,
                 "ground_truth": ground_truth,
-                **scores,
+                "answer_similarity": answer_similarity,
+                "answer_correctness": answer_correctness,
             }
         except Exception as e:
-            print(
-                f"Stage2Evaluator | failed for question '{question[:60]}': {e}"
-            )
+            print(f"Stage2Evaluator | failed for question '{question[:60]}': {e}")
             return None
 
     def aggregate(self, results: list) -> dict:
         """
-        Compute mean scores across all non-None results.
+        Mean scores across non-None results.
 
-        Parameters
-        ----------
-        results : list of dict | None
-
-        Returns
-        -------
-        dict with keys: mean_faithfulness, mean_answer_relevancy,
-                        mean_context_precision, mean_context_recall
+        Returns dict with keys: mean_answer_similarity, mean_answer_correctness
         """
         valid = [r for r in results if r is not None]
         if not valid:
-            return {
-                "mean_faithfulness": 0.0,
-                "mean_answer_relevancy": 0.0,
-                "mean_context_precision": 0.0,
-                "mean_context_recall": 0.0,
-            }
+            return {"mean_answer_similarity": 0.0, "mean_answer_correctness": 0.0}
         return {
-            "mean_faithfulness": sum(r["faithfulness"] for r in valid) / len(valid),
-            "mean_answer_relevancy": sum(r["answer_relevancy"] for r in valid) / len(valid),
-            "mean_context_precision": sum(r["context_precision"] for r in valid) / len(valid),
-            "mean_context_recall": sum(r["context_recall"] for r in valid) / len(valid),
+            "mean_answer_similarity": sum(r["answer_similarity"] for r in valid) / len(valid),
+            "mean_answer_correctness": sum(r["answer_correctness"] for r in valid) / len(valid),
         }
