@@ -2,14 +2,13 @@
 import sys
 import os
 import json
-import glob
 import argparse
 
 import streamlit as st
 import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from config import RESULTS_DIR, UPLOADS_DIR, CHUNK_SIZE, EMBEDDING_MODEL, COHERE_RERANK_MODEL, SAMPLE_PER_TYPE
+from config import UPLOADS_DIR, CHUNK_SIZE, EMBEDDING_MODEL, COHERE_RERANK_MODEL, SAMPLE_PER_TYPE
 from pipeline_runner import run_pipeline
 
 
@@ -44,13 +43,6 @@ _RED = "background-color: #ffc7ce; color: #9c0006"
 def load_results(path: str) -> dict:
     with open(path) as f:
         return json.load(f)
-
-
-def find_latest_results() -> str | None:
-    files = glob.glob(os.path.join(RESULTS_DIR, "*_eval_results.json"))
-    if not files:
-        return None
-    return max(files, key=os.path.getmtime)
 
 
 def parse_args() -> str | None:
@@ -112,13 +104,10 @@ def render_run_panel():
                 st.rerun()
 
 
-def resolve_data(uploaded_results):
-    """Pick which results to display, by priority. Starts clean — does NOT
-    auto-load the most recent file; the user must upload a PDF, run an eval,
-    or load a results JSON explicitly."""
-    if uploaded_results is not None:
-        return json.load(uploaded_results)
-
+def resolve_data():
+    """Pick which results to display. Starts clean — does NOT auto-load the most
+    recent file; results come from a run completed in this session (or a CLI
+    --results path)."""
     active = st.session_state.get("active_results_path")
     if active and os.path.exists(active):
         return load_results(active)
@@ -247,7 +236,6 @@ def main():
     # --- Sidebar ---
     with st.sidebar:
         st.header("Settings")
-        uploaded_results = st.file_uploader("Load a results JSON", type="json")
         st.subheader("Config")
         st.write(f"Chunk size: {CHUNK_SIZE} tokens")
         st.write(f"Embedding model: {EMBEDDING_MODEL}")
@@ -261,9 +249,9 @@ def main():
     render_run_panel()
 
     # --- Resolve which results to display ---
-    data = resolve_data(uploaded_results)
+    data = resolve_data()
     if data is None:
-        st.info("Upload a PDF above to run an evaluation, or load a results JSON from the sidebar.")
+        st.info("Upload a PDF above and click **Run full evaluation** to see results here.")
         st.stop()
         return
 
