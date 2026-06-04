@@ -5,4 +5,5 @@ __pycache__/
 indexes/*.faiss
 indexes/*_meta.json
 results/*_eval_results.json
+uploads/
 .pytest_cache/

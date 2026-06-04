@@ -14,5 +14,9 @@ COHERE_RERANK_MODEL = "rerank-english-v3.0"
 STAGE1_SIMILARITY_THRESHOLD = 0.5
 INDEX_DIR = "./indexes"
 RESULTS_DIR = "./results"
+UPLOADS_DIR = "./uploads"
+# Stratified sampling for UI-driven runs: evaluate up to this many questions
+# per question_type (covers every type while bounding runtime).
+SAMPLE_PER_TYPE = 10
 CHUNKING_STRATEGIES = ["fixed", "semantic", "parent_child"]
 PIPELINE_NAMES = ["pipeline_1", "pipeline_2", "pipeline_3"]

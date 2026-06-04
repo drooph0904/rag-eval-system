@@ -204,6 +204,8 @@ def main():
                 chunks = _retrieve(pipeline_name, question, store, embedder,
                                    openai_client, cohere_client, p1, p2, p3)
                 result = stage1_evaluator.evaluate(question, ground_truth, chunks, embedder)
+                if result is not None:
+                    result["question_type"] = q.get("question_type", "unknown")
                 per_question.append(result)
 
             agg = stage1_evaluator.aggregate(per_question)
@@ -245,6 +247,8 @@ def main():
             chunks = _retrieve(pipeline_name, question, store, embedder,
                                openai_client, cohere_client, p1, p2, p3)
             result = stage2_evaluator.evaluate(question, ground_truth, chunks, openai_client, embedder)
+            if result is not None:
+                result["question_type"] = q.get("question_type", "unknown")
             per_question.append(result)
 
         agg = stage2_evaluator.aggregate(per_question)
