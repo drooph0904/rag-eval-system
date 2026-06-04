@@ -26,6 +26,54 @@ def make_chunks(n=3):
     return [{"chunk_id": f"fixed_{i:03d}", "text": f"chunk {i}", "score": 0.8} for i in range(n)]
 
 
+def make_lexical_embedder(n_chunks):
+    """Embedder whose embeddings give ZERO cosine (orthogonal), so only the lexical
+    path can mark a chunk relevant."""
+    mock = MagicMock()
+    gt = np.zeros(384, dtype=np.float32); gt[0] = 1.0
+    cv = np.zeros((n_chunks, 384), dtype=np.float32); cv[:, 1] = 1.0
+    mock.embed_one.return_value = gt
+    mock.embed.return_value = cv
+    return mock
+
+
+def chunk(text):
+    return {"chunk_id": "c", "text": text, "score": 0.1}
+
+
+class TestStage1Lexical:
+    def test_chunk_containing_answer_is_relevant_despite_low_embedding(self):
+        ev = Stage1Evaluator()
+        chunks = [chunk("Education: Maharaja Agrasen Institute of Technology (MAIT), Delhi, B.Tech CSE")]
+        embedder = make_lexical_embedder(len(chunks))
+        result = ev.evaluate("Where does he study?", "Maharaja Agrasen Institute of Technology", chunks, embedder)
+        assert result["context_recall"] == 1.0
+        assert result["relevant_chunks_found"] == 1
+
+    def test_numeric_answer_present_in_chunk_is_relevant(self):
+        ev = Stage1Evaluator()
+        chunks = [chunk("The QA Jira CLI Tool is used daily by 5 engineers across the team.")]
+        embedder = make_lexical_embedder(len(chunks))
+        result = ev.evaluate("How many engineers?", "5 engineers", chunks, embedder)
+        assert result["relevant_chunks_found"] == 1
+
+    def test_unrelated_chunk_not_relevant(self):
+        ev = Stage1Evaluator()
+        chunks = [chunk("He enjoys hiking and photography on weekends.")]
+        embedder = make_lexical_embedder(len(chunks))
+        result = ev.evaluate("Where does he study?", "Maharaja Agrasen Institute of Technology", chunks, embedder)
+        assert result["relevant_chunks_found"] == 0
+        assert result["context_recall"] == 0.0
+
+    def test_partial_overlap_below_threshold_not_relevant(self):
+        ev = Stage1Evaluator()
+        # only "institute" overlaps out of 5 significant answer tokens -> 0.2 < 0.6
+        chunks = [chunk("He works at a research institute downtown.")]
+        embedder = make_lexical_embedder(len(chunks))
+        result = ev.evaluate("Where?", "Maharaja Agrasen Institute of Technology Delhi", chunks, embedder)
+        assert result["relevant_chunks_found"] == 0
+
+
 class TestStage1Evaluator:
     def test_evaluate_returns_dict(self):
         ev = Stage1Evaluator()
