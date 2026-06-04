@@ -27,11 +27,11 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # sys.path setup
 # 1. Ensure THIS package's directory is at the front so our config.py wins.
-# 2. Append the Phase 1 sibling package so pdf_extractor can be imported
-#    WITHOUT shadowing local modules (append, not insert-at-0).
+# 2. Append the vendored Phase 1 package (subdirectory) so pdf_extractor can be
+#    imported WITHOUT shadowing local modules (append, not insert-at-0).
 # ---------------------------------------------------------------------------
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_GDG_DIR = os.path.join(_THIS_DIR, "..", "golden_dataset_generator")
+_GDG_DIR = os.path.join(_THIS_DIR, "golden_dataset_generator")
 
 if _THIS_DIR not in sys.path:
     sys.path.insert(0, _THIS_DIR)

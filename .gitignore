@@ -6,4 +6,5 @@ indexes/*.faiss
 indexes/*_meta.json
 results/*_eval_results.json
 uploads/
+golden_dataset_generator/output/*.json
 .pytest_cache/

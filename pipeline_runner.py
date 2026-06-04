@@ -27,10 +27,12 @@ from config import SAMPLE_PER_TYPE
 from evaluation.sampler import stratified_sample
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_GDG_DIR = os.path.abspath(os.path.join(_THIS_DIR, "..", "golden_dataset_generator"))
+# Phase 1 (golden generator) is vendored as a subdirectory of this repo and shares
+# the same virtualenv, so a single clone runs the whole project end to end.
+_GDG_DIR = os.path.join(_THIS_DIR, "golden_dataset_generator")
 
-_PHASE1_PY = os.path.join(_GDG_DIR, ".venv", "bin", "python")
 _PHASE2_PY = os.path.join(_THIS_DIR, ".venv", "bin", "python")
+_PHASE1_PY = _PHASE2_PY  # one shared venv for both phases
 
 
 # --------------------------------------------------------------------------- #

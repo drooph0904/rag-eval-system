@@ -5,8 +5,10 @@ benchmarks **9 retrieval pipelines** against a golden Q&A set, scoring each
 pipeline's answers against ground truth and crowning the best setup — all in a
 Streamlit dashboard.
 
-It builds on **Phase 1** (a golden-dataset generator that turns a PDF into typed
-Q&A pairs), which lives in a sibling project, `golden_dataset_generator/`.
+**Self-contained:** this repo includes **Phase 1** — the golden-dataset generator
+that turns a PDF into typed Q&A pairs — under `golden_dataset_generator/`. Both
+phases share one virtualenv and one `.env`, so a single clone runs the whole
+project end to end.
 
 ## What it does
 
@@ -34,22 +36,45 @@ Python 3.11+, `faiss-cpu`, `sentence-transformers` (all-MiniLM-L6-v2), `tiktoken
 
 ## Quickstart
 
+One venv and one `.env` at the repo root serve both phases.
+
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 cp .env.example .env        # add OPENAI_API_KEY and COHERE_API_KEY
 
-# Evaluate a PDF against a Phase 1 golden dataset (CLI):
-.venv/bin/python main.py path/to/doc.pdf path/to/doc_golden.json
-
-# Or use the UI — upload any PDF, it runs Phase 1 + Phase 2 end to end:
+# Easiest: the UI — upload any PDF; it runs Phase 1 (generate golden Q&A)
+# then Phase 2 (evaluate) end to end and shows the dashboard:
 .venv/bin/streamlit run ui/app.py
+```
+
+### Or run the phases from the CLI
+
+```bash
+# Phase 1 — generate a golden Q&A dataset from a PDF:
+cd golden_dataset_generator
+../.venv/bin/python main.py /path/to/doc.pdf      # -> output/doc_golden.json
+cd ..
+
+# Phase 2 — evaluate the 9 pipelines against that golden set:
+.venv/bin/python main.py /path/to/doc.pdf golden_dataset_generator/output/doc_golden.json
+```
+
+## Project layout
+
+```
+.                              # Phase 2 — evaluation engine
+├── indexer/  retrieval/  evaluation/  ui/
+├── main.py                    # Phase 2 orchestrator
+├── pipeline_runner.py         # UI flow: runs Phase 1 + sample + Phase 2
+└── golden_dataset_generator/  # Phase 1 — golden Q&A generator (vendored)
 ```
 
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest -q                         # Phase 2 suite
+cd golden_dataset_generator && ../.venv/bin/python -m pytest -q   # Phase 1 suite
 ```
 
 ## Configuration
