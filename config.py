@@ -22,6 +22,6 @@ RESULTS_DIR = "./results"
 UPLOADS_DIR = "./uploads"
 # Stratified sampling for UI-driven runs: evaluate up to this many questions
 # per question_type (covers every type while bounding runtime).
-SAMPLE_PER_TYPE = 10
+SAMPLE_PER_TYPE = 5
 CHUNKING_STRATEGIES = ["fixed", "semantic", "parent_child"]
 PIPELINE_NAMES = ["pipeline_1", "pipeline_2", "pipeline_3"]

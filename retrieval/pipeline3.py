@@ -7,12 +7,8 @@
 # Response: V2RerankResponse with .results list of V2RerankResponseResultsItem
 #   each item has: .index (int), .relevance_score (float)
 
-from config import TOP_K_RETRIEVAL, TOP_K_FINAL, HYDE_MODEL, COHERE_RERANK_MODEL
-
-HYDE_PROMPT = """Generate a concise factual paragraph that would directly answer this question.
-Write as if extracted from a document. Do not mention the question itself.
-Question: {question}
-Paragraph:"""
+from config import TOP_K_RETRIEVAL, TOP_K_FINAL, COHERE_RERANK_MODEL
+from retrieval.hyde import hypothetical_answer
 
 
 class Pipeline3:
@@ -24,15 +20,9 @@ class Pipeline3:
         openai_client,
         cohere_client,
     ) -> list[dict]:
-        # --- Step 1: HyDE — generate a hypothetical answer and embed it ---
+        # --- Step 1: HyDE — generate a hypothetical answer and embed it (cached) ---
         try:
-            response = openai_client.chat.completions.create(
-                model=HYDE_MODEL,
-                messages=[{"role": "user", "content": HYDE_PROMPT.format(question=question)}],
-                temperature=0,
-                max_tokens=200,
-            )
-            hyp_answer = response.choices[0].message.content.strip()
+            hyp_answer = hypothetical_answer(question, openai_client)
             query_vector = embedder.embed_one(hyp_answer)
         except Exception as e:
             print(f"Pipeline3 | HyDE failed ({e}), using direct embedding")
