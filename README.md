@@ -1,4 +1,4 @@
-# RAG Evaluation System — Phase 2
+# RAG Evaluation System
 
 A RAG (Retrieval-Augmented Generation) evaluation engine. Give it a PDF and it
 benchmarks **9 retrieval pipelines** against a golden Q&A set, scoring each
