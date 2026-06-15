@@ -1,0 +1,262 @@
+{
+  "metadata": {
+    "pdf_name": "diffusion_protein_backbone_design.pdf",
+    "evaluated_at": "2026-06-13 (illustrative sample)",
+    "total_questions": 8
+  },
+  "stage1_results": {
+    "fixed_pipeline_1": {
+      "mean_context_precision": 0.61,
+      "mean_context_recall": 0.66
+    },
+    "fixed_pipeline_2": {
+      "mean_context_precision": 0.68,
+      "mean_context_recall": 0.71
+    },
+    "fixed_pipeline_3": {
+      "mean_context_precision": 0.74,
+      "mean_context_recall": 0.79
+    },
+    "semantic_pipeline_1": {
+      "mean_context_precision": 0.66,
+      "mean_context_recall": 0.7
+    },
+    "semantic_pipeline_2": {
+      "mean_context_precision": 0.72,
+      "mean_context_recall": 0.76
+    },
+    "semantic_pipeline_3": {
+      "mean_context_precision": 0.81,
+      "mean_context_recall": 0.85
+    },
+    "parent_child_pipeline_1": {
+      "mean_context_precision": 0.69,
+      "mean_context_recall": 0.74
+    },
+    "parent_child_pipeline_2": {
+      "mean_context_precision": 0.78,
+      "mean_context_recall": 0.82
+    },
+    "parent_child_pipeline_3": {
+      "mean_context_precision": 0.88,
+      "mean_context_recall": 0.91
+    }
+  },
+  "stage2_results": {
+    "parent_child_pipeline_3": {
+      "mean_answer_correctness": 0.89,
+      "mean_answer_similarity": 0.92,
+      "per_question": [
+        {
+          "question": "What generative approach does the paper use to design protein backbones?",
+          "question_type": "methodology",
+          "answer_correctness": 0.95,
+          "answer_similarity": 0.99,
+          "generated_answer": "The method is a denoising diffusion probabilistic model that generates protein backbones by iteratively denoising residue frames represented as SE(3) rotations and translations.",
+          "ground_truth": "A denoising diffusion probabilistic model operating on residue frames (rotation + translation)."
+        },
+        {
+          "question": "What success metric is used to validate the designed proteins in silico?",
+          "question_type": "factual",
+          "answer_correctness": 0.93,
+          "answer_similarity": 0.97,
+          "generated_answer": "Designs are considered successful when the self-consistency RMSD (scRMSD) between the generated backbone and the AlphaFold2-predicted structure is below 2 Angstrom.",
+          "ground_truth": "Self-consistency RMSD (scRMSD) below 2 Angstrom between design and AlphaFold2 prediction."
+        },
+        {
+          "question": "How many diffusion timesteps are used during sampling?",
+          "question_type": "factual",
+          "answer_correctness": 0.88,
+          "answer_similarity": 0.92,
+          "generated_answer": "Sampling uses 200 diffusion timesteps.",
+          "ground_truth": "200 timesteps."
+        },
+        {
+          "question": "How are sequences generated for a designed backbone?",
+          "question_type": "methodology",
+          "answer_correctness": 0.94,
+          "answer_similarity": 0.98,
+          "generated_answer": "Given a generated backbone, ProteinMPNN designs amino-acid sequences conditioned on the backbone geometry.",
+          "ground_truth": "ProteinMPNN is used to design sequences conditioned on the generated backbone."
+        },
+        {
+          "question": "What is the reported in-silico success rate for unconditional monomer generation?",
+          "question_type": "factual",
+          "answer_correctness": 0.86,
+          "answer_similarity": 0.9,
+          "generated_answer": "Roughly 81% of unconditionally generated monomers pass the scRMSD < 2 Angstrom self-consistency criterion.",
+          "ground_truth": "About 81% of designs pass the scRMSD < 2A self-consistency filter."
+        },
+        {
+          "question": "Why is a self-consistency check preferred over sequence identity for evaluation?",
+          "question_type": "reasoning",
+          "answer_correctness": 0.84,
+          "answer_similarity": 0.88,
+          "generated_answer": "Self-consistency tests whether an independently predicted structure for the designed sequence recovers the target backbone, directly measuring designability rather than superficial sequence similarity.",
+          "ground_truth": "Because it measures whether the designed sequence folds back to the intended structure, not surface similarity."
+        },
+        {
+          "question": "On what dataset is the model trained?",
+          "question_type": "factual",
+          "answer_correctness": 0.97,
+          "answer_similarity": 0.99,
+          "generated_answer": "The model is trained on monomeric protein structures curated from the Protein Data Bank (PDB).",
+          "ground_truth": "Monomeric structures from the Protein Data Bank (PDB)."
+        },
+        {
+          "question": "What advantage does conditioning on residue frames give over raw coordinates?",
+          "question_type": "reasoning",
+          "answer_correctness": 0.81,
+          "answer_similarity": 0.85,
+          "generated_answer": "Representing residues as SE(3) frames makes the generative process equivariant to global rotation and translation, improving sample efficiency and generalization compared with raw Cartesian coordinates.",
+          "ground_truth": "It builds in SE(3) equivariance, so the model generalizes across orientations without learning them."
+        }
+      ]
+    },
+    "semantic_pipeline_3": {
+      "mean_answer_correctness": 0.82,
+      "mean_answer_similarity": 0.86,
+      "per_question": [
+        {
+          "question": "What generative approach does the paper use to design protein backbones?",
+          "question_type": "methodology",
+          "answer_correctness": 0.9,
+          "answer_similarity": 0.94,
+          "generated_answer": "The method is a denoising diffusion probabilistic model that generates protein backbones by iteratively denoising residue frames represented as SE(3) rotations and translations.",
+          "ground_truth": "A denoising diffusion probabilistic model operating on residue frames (rotation + translation)."
+        },
+        {
+          "question": "What success metric is used to validate the designed proteins in silico?",
+          "question_type": "factual",
+          "answer_correctness": 0.86,
+          "answer_similarity": 0.9,
+          "generated_answer": "Designs are considered successful when the self-consistency RMSD (scRMSD) between the generated backbone and the AlphaFold2-predicted structure is below 2 Angstrom.",
+          "ground_truth": "Self-consistency RMSD (scRMSD) below 2 Angstrom between design and AlphaFold2 prediction."
+        },
+        {
+          "question": "How many diffusion timesteps are used during sampling?",
+          "question_type": "factual",
+          "answer_correctness": 0.8,
+          "answer_similarity": 0.84,
+          "generated_answer": "Sampling uses 200 diffusion timesteps.",
+          "ground_truth": "200 timesteps."
+        },
+        {
+          "question": "How are sequences generated for a designed backbone?",
+          "question_type": "methodology",
+          "answer_correctness": 0.88,
+          "answer_similarity": 0.92,
+          "generated_answer": "Given a generated backbone, ProteinMPNN designs amino-acid sequences conditioned on the backbone geometry.",
+          "ground_truth": "ProteinMPNN is used to design sequences conditioned on the generated backbone."
+        },
+        {
+          "question": "What is the reported in-silico success rate for unconditional monomer generation?",
+          "question_type": "factual",
+          "answer_correctness": 0.74,
+          "answer_similarity": 0.78,
+          "generated_answer": "Roughly 81% of unconditionally generated monomers pass the scRMSD < 2 Angstrom self-consistency criterion.",
+          "ground_truth": "About 81% of designs pass the scRMSD < 2A self-consistency filter."
+        },
+        {
+          "question": "Why is a self-consistency check preferred over sequence identity for evaluation?",
+          "question_type": "reasoning",
+          "answer_correctness": 0.78,
+          "answer_similarity": 0.82,
+          "generated_answer": "Self-consistency tests whether an independently predicted structure for the designed sequence recovers the target backbone, directly measuring designability rather than superficial sequence similarity.",
+          "ground_truth": "Because it measures whether the designed sequence folds back to the intended structure, not surface similarity."
+        },
+        {
+          "question": "On what dataset is the model trained?",
+          "question_type": "factual",
+          "answer_correctness": 0.93,
+          "answer_similarity": 0.97,
+          "generated_answer": "The model is trained on monomeric protein structures curated from the Protein Data Bank (PDB).",
+          "ground_truth": "Monomeric structures from the Protein Data Bank (PDB)."
+        },
+        {
+          "question": "What advantage does conditioning on residue frames give over raw coordinates?",
+          "question_type": "reasoning",
+          "answer_correctness": 0.72,
+          "answer_similarity": 0.76,
+          "generated_answer": "Representing residues as SE(3) frames makes the generative process equivariant to global rotation and translation, improving sample efficiency and generalization compared with raw Cartesian coordinates.",
+          "ground_truth": "It builds in SE(3) equivariance, so the model generalizes across orientations without learning them."
+        }
+      ]
+    },
+    "parent_child_pipeline_2": {
+      "mean_answer_correctness": 0.79,
+      "mean_answer_similarity": 0.83,
+      "per_question": [
+        {
+          "question": "What generative approach does the paper use to design protein backbones?",
+          "question_type": "methodology",
+          "answer_correctness": 0.88,
+          "answer_similarity": 0.92,
+          "generated_answer": "The method is a denoising diffusion probabilistic model that generates protein backbones by iteratively denoising residue frames represented as SE(3) rotations and translations.",
+          "ground_truth": "A denoising diffusion probabilistic model operating on residue frames (rotation + translation)."
+        },
+        {
+          "question": "What success metric is used to validate the designed proteins in silico?",
+          "question_type": "factual",
+          "answer_correctness": 0.82,
+          "answer_similarity": 0.86,
+          "generated_answer": "Designs are considered successful when the self-consistency RMSD (scRMSD) between the generated backbone and the AlphaFold2-predicted structure is below 2 Angstrom.",
+          "ground_truth": "Self-consistency RMSD (scRMSD) below 2 Angstrom between design and AlphaFold2 prediction."
+        },
+        {
+          "question": "How many diffusion timesteps are used during sampling?",
+          "question_type": "factual",
+          "answer_correctness": 0.71,
+          "answer_similarity": 0.75,
+          "generated_answer": "Sampling uses 200 diffusion timesteps.",
+          "ground_truth": "200 timesteps."
+        },
+        {
+          "question": "How are sequences generated for a designed backbone?",
+          "question_type": "methodology",
+          "answer_correctness": 0.85,
+          "answer_similarity": 0.89,
+          "generated_answer": "Given a generated backbone, ProteinMPNN designs amino-acid sequences conditioned on the backbone geometry.",
+          "ground_truth": "ProteinMPNN is used to design sequences conditioned on the generated backbone."
+        },
+        {
+          "question": "What is the reported in-silico success rate for unconditional monomer generation?",
+          "question_type": "factual",
+          "answer_correctness": 0.7,
+          "answer_similarity": 0.74,
+          "generated_answer": "Roughly 81% of unconditionally generated monomers pass the scRMSD < 2 Angstrom self-consistency criterion.",
+          "ground_truth": "About 81% of designs pass the scRMSD < 2A self-consistency filter."
+        },
+        {
+          "question": "Why is a self-consistency check preferred over sequence identity for evaluation?",
+          "question_type": "reasoning",
+          "answer_correctness": 0.69,
+          "answer_similarity": 0.73,
+          "generated_answer": "Self-consistency tests whether an independently predicted structure for the designed sequence recovers the target backbone, directly measuring designability rather than superficial sequence similarity.",
+          "ground_truth": "Because it measures whether the designed sequence folds back to the intended structure, not surface similarity."
+        },
+        {
+          "question": "On what dataset is the model trained?",
+          "question_type": "factual",
+          "answer_correctness": 0.9,
+          "answer_similarity": 0.94,
+          "generated_answer": "The model is trained on monomeric protein structures curated from the Protein Data Bank (PDB).",
+          "ground_truth": "Monomeric structures from the Protein Data Bank (PDB)."
+        },
+        {
+          "question": "What advantage does conditioning on residue frames give over raw coordinates?",
+          "question_type": "reasoning",
+          "answer_correctness": 0.67,
+          "answer_similarity": 0.71,
+          "generated_answer": "Representing residues as SE(3) frames makes the generative process equivariant to global rotation and translation, improving sample efficiency and generalization compared with raw Cartesian coordinates.",
+          "ground_truth": "It builds in SE(3) equivariance, so the model generalizes across orientations without learning them."
+        }
+      ]
+    }
+  },
+  "winner": {
+    "combination": "parent_child_pipeline_3",
+    "reason": "Parent-Child chunking + HyDE + Cohere rerank gave the highest mean answer correctness (0.89). Parent-child chunks preserve enough surrounding context for multi-sentence method questions, while HyDE bridges the query\u2194document vocabulary gap and the reranker filters the final 5 chunks \u2014 so generation compute (the expensive step) was spent only on this and the two other finalists, not all 9 combinations."
+  },
+  "_demo_note": "Illustrative sample bundled for the hosted demo. Replace with a real run (`results/<paper>_eval_results.json`) for authentic numbers before sharing."
+}

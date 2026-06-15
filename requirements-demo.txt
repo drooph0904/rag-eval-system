@@ -1,0 +1,5 @@
+# Lightweight deps for the HOSTED, read-only demo (sample dashboard only).
+# The live "Run evaluation" path needs the full set in requirements-local.txt
+# plus a local .venv and API keys — it does not run on Streamlit Cloud.
+streamlit>=1.35.0
+pandas>=2.0.0

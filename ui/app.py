@@ -9,7 +9,15 @@ import pandas as pd
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config import UPLOADS_DIR, CHUNK_SIZE, EMBEDDING_MODEL, COHERE_RERANK_MODEL, SAMPLE_PER_TYPE
-from pipeline_runner import run_pipeline
+
+# Bundled, key-free sample so the app is instantly explorable on a hosted demo.
+SAMPLE_RESULTS = os.path.join(
+    os.path.dirname(__file__), "..", "results", "sample_protein_design.json"
+)  # NB: not named *_eval_results.json so .gitignore doesn't drop it from the repo
+# NOTE: pipeline_runner (the live "Run evaluation" path) shells out to a local
+# .venv and calls paid APIs, so it only works on a local clone with keys — it is
+# imported lazily inside run_evaluation(), never at module load, so the hosted
+# demo boots fast and works without the heavy ML deps installed.
 
 
 # Human-readable names for chunking strategies and retrieval pipelines.
@@ -58,6 +66,8 @@ def parse_args() -> str | None:
 def run_evaluation(uploaded_pdf):
     """Save the uploaded PDF and stream the full Phase 1 -> sample -> Phase 2
     pipeline in the MAIN area (the controls live in the sidebar)."""
+    from pipeline_runner import run_pipeline  # lazy: heavy deps only on a live local run
+
     os.makedirs(UPLOADS_DIR, exist_ok=True)
     pdf_path = os.path.join(UPLOADS_DIR, uploaded_pdf.name)
     with open(pdf_path, "wb") as f:
@@ -225,7 +235,14 @@ def main():
 
     # --- Sidebar: upload + run + config ---
     with st.sidebar:
-        st.header("🚀 Evaluate a PDF")
+        st.header("▶ Try it instantly")
+        st.caption("See a finished evaluation on a protein-design paper — no API keys, no waiting.")
+        if st.button("Load sample demo", type="primary", use_container_width=True):
+            st.session_state["active_results_path"] = SAMPLE_RESULTS
+            st.rerun()
+
+        st.divider()
+        st.header("🚀 Evaluate your own PDF")
         st.caption(
             f"Generates golden Q&A over the whole PDF (Phase 1), then evaluates up to "
             f"{SAMPLE_PER_TYPE} questions per type across all 9 pipelines (Phase 2)."
@@ -237,7 +254,8 @@ def main():
             use_container_width=True,
             disabled=uploaded_pdf is None,
         )
-        st.caption("⏱️ Large PDFs can take several minutes.")
+        st.caption("⏱️ Large PDFs take several minutes. Live runs work on a local clone "
+                   "with API keys — the hosted demo is read-only, use **Load sample demo** above.")
 
         st.divider()
         st.subheader("⚙️ Config")
@@ -259,9 +277,16 @@ def main():
     # --- Resolve which results to display ---
     data = resolve_data()
     if data is None:
-        st.info("⬅️ Upload a PDF in the sidebar and click **Run full evaluation** to see results here.")
+        st.info("⬅️ Click **Load sample demo** in the sidebar to explore a finished evaluation "
+                "instantly — or upload your own PDF and run it locally.")
         st.stop()
         return
+
+    is_sample = st.session_state.get("active_results_path") == SAMPLE_RESULTS
+    if is_sample:
+        st.info("📊 **Sample run** on a protein-design paper — illustrative numbers bundled so you "
+                "can explore the dashboard without keys. The engine produces this same report from "
+                "any PDF on a live local run.")
 
     meta = data.get("metadata", {})
     st.subheader(
